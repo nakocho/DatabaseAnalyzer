@@ -17,7 +17,7 @@
                         Validador de Datos
                     </h1>
                     <p class="lead text-muted">
-                        Valida y limpia datos de usuarios españoles con verificación de DNI/NIE/CIF y normalización de teléfonos
+                        Valida y limpia datos de usuarios españoles con verificación de DNI/NIE/CIF, validación de emails y normalización de teléfonos
                     </p>
                 </div>
 
@@ -81,6 +81,7 @@
                                 <ul class="list-unstyled">
                                     <li><code>dni</code> - Documento de identidad</li>
                                     <li><code>telefono</code> - Número de teléfono</li>
+                                    <li><code>email</code> - Dirección de correo electrónico</li>
                                     <li>Otras columnas se preservarán</li>
                                 </ul>
                             </div>
@@ -93,6 +94,7 @@
                                     <li><strong>DNI:</strong> 8 dígitos + letra</li>
                                     <li><strong>NIE:</strong> X/Y/Z + 7 dígitos + letra</li>
                                     <li><strong>CIF:</strong> Letra + 7 dígitos + control</li>
+                                    <li><strong>Email:</strong> Validación RFC compliant</li>
                                     <li><strong>Teléfono:</strong> Prioriza móviles (6/7)</li>
                                 </ul>
                             </div>

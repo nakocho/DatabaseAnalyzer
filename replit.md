@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Flask web application designed to validate and clean Spanish user data from CSV files. The application specializes in validating Spanish identification documents (DNI, NIE, CIF) and normalizing phone numbers. It provides a simple web interface for uploading CSV files and downloading processed results.
+This is a Flask web application designed to validate and clean Spanish user data from CSV files. The application specializes in validating Spanish identification documents (DNI, NIE, CIF), email addresses, and normalizing phone numbers. It provides a simple web interface for uploading CSV files and downloading processed results.
 
 ## User Preferences
 
@@ -29,10 +29,11 @@ Preferred communication style: Simple, everyday language.
 ## Key Components
 
 ### Data Validation Module (`validators.py`)
-- **Purpose**: Validates Spanish identification documents and phone numbers
+- **Purpose**: Validates Spanish identification documents, email addresses, and phone numbers
 - **DNI Validation**: 8-digit number + control letter validation
 - **NIE Validation**: Foreign identification number validation (X/Y/Z prefix)
 - **CIF Validation**: Company identification number validation
+- **Email Validation**: RFC-compliant email validation with normalization
 - **Phone Normalization**: Cleans and standardizes Spanish phone numbers
 
 ### File Processing System
@@ -52,8 +53,8 @@ Preferred communication style: Simple, everyday language.
 2. **Validation**: Flask validates file type and size constraints
 3. **Processing**: 
    - CSV is parsed using Pandas
-   - Each record is validated using the validators module
-   - Results are compiled with statistics
+   - Each record is validated for DNI/NIE/CIF, email (if present), and phone numbers
+   - Results are compiled with statistics and error details
 4. **Output Generation**: Processed CSV is generated with validation results
 5. **Results Display**: Summary statistics and download link are presented
 
@@ -63,6 +64,7 @@ Preferred communication style: Simple, everyday language.
 - **Flask**: Web framework for HTTP handling and templating
 - **Pandas**: Data manipulation and CSV processing
 - **Werkzeug**: Security utilities and file handling
+- **email-validator**: RFC-compliant email validation and normalization
 
 ### Frontend Dependencies
 - **Bootstrap 5**: CSS framework for responsive UI

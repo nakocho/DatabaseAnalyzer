@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from email_validator import validate_email, EmailNotValidError
 
 def validar_identificador(identificador):
     """
@@ -94,3 +95,20 @@ def limpiar_y_elegir_telefono(telefono_str):
         return ""  # Return empty for landline as per original logic
     else:
         return ""
+
+def validar_email(email_str):
+    """
+    Validate email addresses
+    Returns tuple (is_valid, error_message, normalized_email)
+    """
+    if pd.isna(email_str) or str(email_str).strip() == "":
+        return False, "Email vacío", ""
+    
+    email_str = str(email_str).strip()
+    
+    try:
+        # Validate and normalize the email
+        valid = validate_email(email_str)
+        return True, "", valid.email
+    except EmailNotValidError as e:
+        return False, str(e), ""

@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
-from validators import validar_identificador, limpiar_y_elegir_telefono
+from validators import validar_identificador, limpiar_y_elegir_telefono, validar_email
 import uuid
 from datetime import datetime
 
@@ -98,13 +98,31 @@ def process_csv_file(file_path, file_id):
             
             # Validate DNI/NIE/CIF
             dni = str(fila.get('dni', '')).strip()
-            es_valido, motivo = validar_identificador(dni)
+            dni_valido, motivo_dni = validar_identificador(dni)
+            
+            # Validate email if present
+            email_valido = True
+            motivo_email = ""
+            email_normalizado = ""
+            
+            if 'email' in fila and pd.notna(fila.get('email', '')):
+                email_valido, motivo_email, email_normalizado = validar_email(fila.get('email', ''))
+                if email_valido:
+                    fila['email'] = email_normalizado
+            
+            # Record is valid only if both DNI and email (if present) are valid
+            es_valido = dni_valido and email_valido
             
             if es_valido:
                 validos.append(fila)
             else:
                 fila_con_motivo = fila.copy()
-                fila_con_motivo['motivo_invalido'] = motivo
+                motivos = []
+                if not dni_valido:
+                    motivos.append(f"DNI: {motivo_dni}")
+                if not email_valido and motivo_email:
+                    motivos.append(f"Email: {motivo_email}")
+                fila_con_motivo['motivo_invalido'] = "; ".join(motivos)
                 no_validos.append(fila_con_motivo)
         
         # Create DataFrames
