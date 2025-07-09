@@ -1,0 +1,9 @@
+dni;telefono;email;nombre;apellidos;ciudad
+12345678Z;666123456;juan.perez@email.com;Juan;Pérez García;Madrid
+87654321X;91-234-56-78;maria.lopez@correo.es;María;López Ruiz;Barcelona
+X1234567L;+34 655 789 123;carlos.gonzalez@gmail.com;Carlos;González Martín;Valencia
+Y7654321K;983456789;ana.rodriguez@hotmail.es;Ana;Rodríguez Sánchez;Sevilla
+B12345678;666-111-222;empresa@negocio.com;Empresa;Test SL;Bilbao
+45678912A;600 345 678;pedro.martin@yahoo.es;Pedro;Martín Jiménez;Zaragoza
+INVALIDO123;telefono_malo;email_incorrecto;Registro;Inválido;Error
+Z9876543R;777888999;sofia.hernandez@outlook.com;Sofía;Hernández Vega;Málaga
