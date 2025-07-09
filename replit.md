@@ -8,6 +8,13 @@ This is a Flask web application designed to validate and clean Spanish user data
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+- **July 9, 2025**: Added comprehensive email validation using email-validator library
+- **July 9, 2025**: Configured database connectivity with MariaDB using environment variables
+- **July 9, 2025**: Added .env file support for secure credential management
+- **July 9, 2025**: Created database connection testing functionality
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -65,6 +72,8 @@ Preferred communication style: Simple, everyday language.
 - **Pandas**: Data manipulation and CSV processing
 - **Werkzeug**: Security utilities and file handling
 - **email-validator**: RFC-compliant email validation and normalization
+- **pymysql**: MySQL/MariaDB database connectivity
+- **python-dotenv**: Environment variable management from .env files
 
 ### Frontend Dependencies
 - **Bootstrap 5**: CSS framework for responsive UI

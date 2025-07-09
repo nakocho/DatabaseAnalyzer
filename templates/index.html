@@ -60,10 +60,40 @@
                                 </button>
                             </div>
                         </form>
+                        
+                        <!-- Database test section -->
+                        <div class="mt-3 text-center">
+                            <a href="{{ url_for('test_db') }}" class="btn btn-outline-info">
+                                <i class="bi bi-database me-2"></i>
+                                Probar Conexión Base de Datos
+                            </a>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Instructions -->
+                <div class="card border-0 mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-database me-2"></i>
+                            Configuración de Base de Datos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            La aplicación está configurada para conectarse a una base de datos MariaDB usando las variables del archivo <code>.env</code>:
+                        </p>
+                        <ul class="list-unstyled">
+                            <li><code>DB_HOST</code> - Servidor de base de datos</li>
+                            <li><code>DB_PORT</code> - Puerto (por defecto 3306)</li>
+                            <li><code>DB_USER</code> - Usuario de conexión</li>
+                            <li><code>DB_PASSWORD</code> - Contraseña</li>
+                            <li><code>DB_NAME</code> - Nombre de la base de datos</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- File format instructions -->
                 <div class="card border-0 mt-4">
                     <div class="card-header">
                         <h5 class="card-title mb-0">

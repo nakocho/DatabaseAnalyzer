@@ -1,5 +1,9 @@
 import os
 import pandas as pd
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -7,6 +11,8 @@ import logging
 from validators import validar_identificador, limpiar_y_elegir_telefono, validar_email
 import uuid
 from datetime import datetime
+import pymysql
+from pymysql.cursors import DictCursor
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -28,6 +34,38 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def get_database_connection():
+    """Get database connection using environment variables"""
+    try:
+        connection = pymysql.connect(
+            host=os.getenv('DB_HOST'),
+            port=int(os.getenv('DB_PORT', 3306)),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME'),
+            cursorclass=DictCursor,
+            charset='utf8mb4'
+        )
+        return connection
+    except Exception as e:
+        logging.error(f"Error connecting to database: {str(e)}")
+        return None
+
+def test_database_connection():
+    """Test database connection and return status"""
+    try:
+        connection = get_database_connection()
+        if connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT VERSION() as version")
+                result = cursor.fetchone()
+                connection.close()
+                return True, f"Connected to MariaDB {result['version']}"
+        else:
+            return False, "Unable to establish connection"
+    except Exception as e:
+        return False, f"Database error: {str(e)}"
+
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -44,6 +82,16 @@ def puede_escribir_archivo(ruta):
 def index():
     """Main page with file upload form"""
     return render_template('index.html')
+
+@app.route('/test-db')
+def test_db():
+    """Test database connection"""
+    success, message = test_database_connection()
+    if success:
+        flash(f'✅ Conexión exitosa: {message}', 'success')
+    else:
+        flash(f'❌ Error de conexión: {message}', 'error')
+    return redirect(url_for('index'))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
