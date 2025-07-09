@@ -1,0 +1,168 @@
+import os
+import pandas as pd
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
+import logging
+from validators import validar_identificador, limpiar_y_elegir_telefono
+import uuid
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_dev")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Configuration
+UPLOAD_FOLDER = 'static/uploads'
+DOWNLOAD_FOLDER = 'static/downloads'
+ALLOWED_EXTENSIONS = {'csv'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Ensure directories exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def puede_escribir_archivo(ruta):
+    """Check if file can be written"""
+    try:
+        with open(ruta, 'a'):
+            return True
+    except PermissionError:
+        return False
+
+@app.route('/')
+def index():
+    """Main page with file upload form"""
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Handle file upload and processing"""
+    if 'file' not in request.files:
+        flash('No se seleccionó ningún archivo', 'error')
+        return redirect(request.url)
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('No se seleccionó ningún archivo', 'error')
+        return redirect(request.url)
+    
+    if file and allowed_file(file.filename):
+        try:
+            # Generate unique filename
+            file_id = str(uuid.uuid4())
+            filename = secure_filename(file.filename)
+            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}_{filename}")
+            file.save(upload_path)
+            
+            # Process the file
+            results = process_csv_file(upload_path, file_id)
+            
+            # Clean up uploaded file
+            os.remove(upload_path)
+            
+            return render_template('results.html', results=results, file_id=file_id)
+            
+        except Exception as e:
+            logging.error(f"Error processing file: {str(e)}")
+            flash(f'Error al procesar el archivo: {str(e)}', 'error')
+            return redirect(url_for('index'))
+    else:
+        flash('Tipo de archivo no permitido. Solo se aceptan archivos CSV.', 'error')
+        return redirect(url_for('index'))
+
+def process_csv_file(file_path, file_id):
+    """Process CSV file and validate data"""
+    try:
+        # Read CSV file
+        df = pd.read_csv(file_path, sep=';')
+        
+        # Lists for valid and invalid records
+        validos = []
+        no_validos = []
+        
+        # Process each row
+        for idx, fila in df.iterrows():
+            # Clean phone number
+            fila['telefono'] = limpiar_y_elegir_telefono(fila.get('telefono', ''))
+            
+            # Validate DNI/NIE/CIF
+            dni = str(fila.get('dni', '')).strip()
+            es_valido, motivo = validar_identificador(dni)
+            
+            if es_valido:
+                validos.append(fila)
+            else:
+                fila_con_motivo = fila.copy()
+                fila_con_motivo['motivo_invalido'] = motivo
+                no_validos.append(fila_con_motivo)
+        
+        # Create DataFrames
+        df_validos = pd.DataFrame(validos)
+        df_no_validos = pd.DataFrame(no_validos)
+        
+        # Generate output files
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        valid_filename = f"usuarios_validos_{timestamp}.csv"
+        invalid_filename = f"usuarios_invalidos_{timestamp}.csv"
+        
+        valid_path = os.path.join(app.config['DOWNLOAD_FOLDER'], f"{file_id}_{valid_filename}")
+        invalid_path = os.path.join(app.config['DOWNLOAD_FOLDER'], f"{file_id}_{invalid_filename}")
+        
+        # Save files
+        if len(df_validos) > 0:
+            df_validos.to_csv(valid_path, sep=';', index=False)
+        
+        if len(df_no_validos) > 0:
+            df_no_validos.to_csv(invalid_path, sep=';', index=False)
+        
+        # Prepare results
+        results = {
+            'total_records': len(df),
+            'valid_records': len(df_validos),
+            'invalid_records': len(df_no_validos),
+            'valid_file': f"{file_id}_{valid_filename}" if len(df_validos) > 0 else None,
+            'invalid_file': f"{file_id}_{invalid_filename}" if len(df_no_validos) > 0 else None,
+            'columns': list(df.columns),
+            'invalid_reasons': df_no_validos['motivo_invalido'].value_counts().to_dict() if len(df_no_validos) > 0 else {}
+        }
+        
+        return results
+        
+    except Exception as e:
+        logging.error(f"Error in process_csv_file: {str(e)}")
+        raise e
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    """Download processed file"""
+    try:
+        file_path = os.path.join(app.config['DOWNLOAD_FOLDER'], filename)
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=True)
+        else:
+            flash('Archivo no encontrado', 'error')
+            return redirect(url_for('index'))
+    except Exception as e:
+        logging.error(f"Error downloading file: {str(e)}")
+        flash('Error al descargar el archivo', 'error')
+        return redirect(url_for('index'))
+
+@app.errorhandler(413)
+def too_large(e):
+    """Handle file too large error"""
+    flash('El archivo es demasiado grande. Máximo 16MB permitido.', 'error')
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
