@@ -1,0 +1,213 @@
+import pymysql
+import pandas as pd
+import os
+import re
+
+def validar_identificador(identificador):
+    identificador = str(identificador).strip().upper()
+    letras_dni = "TRWAGMYFPDXBNJZSQVHLCKE"
+
+    # DNI
+    if re.fullmatch(r'\d{8}[A-Z]', identificador):
+        numero = int(identificador[:-1])
+        letra = identificador[-1]
+        letra_calculada = letras_dni[numero % 23]
+        if letra == letra_calculada:
+            return True, ""
+        else:
+            return False, f"Letra de control incorrecta (esperado: {letra_calculada})"
+
+    # NIE
+    elif re.fullmatch(r'[XYZ]\d{7}[A-Z]', identificador):
+        prefijo = {'X': '0', 'Y': '1', 'Z': '2'}
+        numero = int(prefijo[identificador[0]] + identificador[1:-1])
+        letra = identificador[-1]
+        letra_calculada = letras_dni[numero % 23]
+        if letra == letra_calculada:
+            return True, ""
+        else:
+            return False, f"Letra de control incorrecta (esperado: {letra_calculada})"
+
+    # CIF
+    elif re.fullmatch(r'[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]', identificador):
+        letra_inicio = identificador[0]
+        numeros = identificador[1:-1]
+        control = identificador[-1]
+
+        suma_pares = sum(int(numeros[i]) for i in range(1, 7, 2))
+        suma_impares = 0
+        for i in range(0, 7, 2):
+            doble = str(int(numeros[i]) * 2)
+            suma_impares += sum(int(d) for d in doble)
+        total = suma_pares + suma_impares
+        control_num = (10 - (total % 10)) % 10
+        control_letras = "JABCDEFGHI"
+
+        if letra_inicio in "PQRSNW":
+            esperado = control_letras[control_num]
+            if control == esperado:
+                return True, ""
+            else:
+                return False, f"Letra de control CIF incorrecta (esperado: {esperado})"
+        elif letra_inicio in "ABEH":
+            if control == str(control_num):
+                return True, ""
+            else:
+                return False, f"Dígito de control CIF incorrecto (esperado: {control_num})"
+        else:
+            if control == str(control_num) or control == control_letras[control_num]:
+                return True, ""
+            else:
+                return False, f"Control CIF incorrecto (esperado: {control_num} o {control_letras[control_num]})"
+
+    return False, "Formato inválido para DNI/NIE/CIF"
+
+def puede_escribir_archivo(ruta):
+    try:
+        with open(ruta, 'a'):
+            return True
+    except PermissionError:
+        return False
+
+import re
+
+def limpiar_y_elegir_telefono(telefono_str):
+    print(f"Procesando teléfono: {telefono_str} ")
+    if pd.isna(telefono_str):
+        return ""
+    
+
+    
+    # Separar por delimitadores comunes: / - ; , espacios
+    candidatos = re.split(r"[\/\-;,\s]+", str(telefono_str).strip())
+    
+    # Limpiar y clasificar los números
+    moviles = []
+    fijos = []
+
+    for num in candidatos:
+        solo_digitos = re.sub(r"\D", "", num)
+        if len(solo_digitos) == 9:
+            if solo_digitos.startswith(('6', '7')):
+                moviles.append(solo_digitos)
+            elif solo_digitos.startswith(('8', '9')):
+                fijos.append(solo_digitos)
+    
+    if moviles:
+        print(f"Teléfono móvil encontrado: {moviles[0]}")
+        return moviles[0]
+    elif fijos:
+        print(f"Teléfono fijo encontrado: {fijos[0]}")
+        return ""
+    else:
+        return ""
+
+# Parámetros de conexión
+conexion = pymysql.connect(
+    host='172.16.20.121',
+    port=3306,
+    user='admin-arabat',
+    password='777_nbczST',
+    database='arabatDB'
+)
+
+try:
+    with conexion.cursor() as cursor:
+        cursor.execute("SELECT VERSION();")
+        version = cursor.fetchone()
+        print("Versión del servidor MariaDB:", version[0])
+        print("✅ Conexión a la base de datos establecida.")
+    
+    print("Cargando usuarios desde archivo CSV...")
+
+    # Leer el archivo CSV
+    df = pd.read_csv('USUARIOS2025(TODOS).csv', sep=';')
+
+    # Listas para válidos y no válidos
+    validos = []
+    no_validos = []
+
+    for idx, fila in df.iterrows():
+        fila['telefono'] = limpiar_y_elegir_telefono(fila.get('telefono', ''))
+        dni = str(fila.get('dni', '')).strip()
+        es_valido, motivo = validar_identificador(dni)
+        
+        if es_valido:
+            validos.append(fila)
+        else:
+            fila_con_motivo = fila.copy()
+            fila_con_motivo['motivo'] = motivo
+            no_validos.append(fila_con_motivo)
+
+    # Crear DataFrames
+    df_validos = pd.DataFrame(validos)
+    df_no_validos = pd.DataFrame(no_validos)
+
+    # Guardar archivos CSV
+    ruta_validos = 'usuarios_dni_validos.csv'
+    ruta_no_validos = 'usuarios_dni_no_validos.csv'
+
+    if not puede_escribir_archivo(ruta_validos):
+        print(f"⚠️ No se puede escribir en {ruta_validos}. ¿Está abierto en Excel?")
+    else:
+        df_validos.to_csv(ruta_validos, sep=';', index=False)
+
+    if not puede_escribir_archivo(ruta_no_validos):
+        print(f"⚠️ No se puede escribir en {ruta_no_validos}. ¿Está abierto en Excel?")
+    else:
+        df_no_validos.to_csv(ruta_no_validos, sep=';', index=False)
+
+    print(f"Registros con identificador válido: {len(df_validos)}")
+    print(f"Registros con identificador NO válido: {len(df_no_validos)}")
+
+finally:
+    conexion.close()
+
+
+
+# --- wp_usermeta ---
+# user_id
+# 2	    nickname        	                    eortegaar
+# 2	    first_name      	                    Eloy
+# 2	    last_name       	                    Ortega Gatón
+# 2	    description     	        
+# 2	    rich_editing        	                true
+# 2	    syntax_highlighting     	            true
+# 2	    comment_shortcuts       	            false
+# 2	    admin_color     	                    fresh
+# 2	    use_ssl     	                        0
+# 2	    show_admin_bar_front        	        false
+# 2	    locale      	        
+# 2	    wp_capabilities     	                a:17:{s:13:"administrator";b:1;s:34:"wpml_manage_translation_management";b:1;s:21:"wpml_manage_languages";b:1;s:41:"wpml_manage_theme_and_plugin_localization";b:1;s:19:"wpml_manage_support";b:1;s:36:"wpml_manage_woocommerce_multilingual";b:1;s:37:"wpml_operate_woocommerce_multilingual";b:1;s:29:"wpml_manage_media_translation";b:1;s:22:"wpml_manage_navigation";b:1;s:24:"wpml_manage_sticky_links";b:1;s:30:"wpml_manage_string_translation";b:1;s:33:"wpml_manage_translation_analytics";b:1;s:25:"wpml_manage_wp_menus_sync";b:1;s:32:"wpml_manage_taxonomy_translation";b:1;s:27:"wpml_manage_troubleshooting";b:1;s:31:"wpml_manage_translation_options";b:1;s:9:"translate";b:1;}
+# 2	    wp_user_level       	                10
+# 2	    dismissed_wp_pointers       	
+# 2	    wp_dashboard_quick_press_last_post_id   1038
+# 2	    community-events-location	            a:1:{s:2:"ip";s:10:"172.18.0.0";}
+# 2	    nav_menu_recently_edited        	    2
+# 2	    managenav-menuscolumnshidden	        a:3:{i:0;s:15:"title-attribute";i:1;s:3:"xfn";i:2;s:11:"description";}
+# 2	    metaboxhidden_nav-menus	                a:2:{i:0;s:22:"add-post-type-carousel";i:1;s:12:"add-post_tag";}
+# 2	    wpsvg_notice_dismissed      	        1
+# 2	    wp_user-settings	                    libraryContent=browse&posts_list_mode=excerpt&hidetb=1
+# 2	    wp_user-settings-time	                1738571776
+# 2	    wp_persisted_preferences        	    a:5:{s:4:"core";a:6:{s:26:"isComplementaryAreaVisible";b:1;s:10:"editorMode";s:6:"visual";s:15:"distractionFree";b:0;s:12:"fixedToolbar";b:1;s:10:"openPanels";a:2:{i:0;s:11:"post-status";i:1;s:34:"taxonomy-panel-wp_pattern_category";}s:34:"isInspectorControlsTabsHintVisible";b:0;}s:14:"core/edit-post";a:2:{s:12:"welcomeGuide";b:0;s:14:"fullscreenMode";b:0;}s:9:"_modified";s:24:"2025-07-04T08:30:19.593Z";s:17:"core/edit-widgets";a:2:{s:26:"isComplementaryAreaVisible";b:1;s:12:"welcomeGuide";b:0;}s:17:"core/block-editor";a:1:{s:25:"linkControlSettingsDrawer";b:1;}}
+# 2	    edit_page_per_page      	            20
+# 2	    session_tokens      	                a:1:{s:64:"6abb5ba3d693ed893845fc09cd075cdff380929a844bc65a485974c5628debf4";a:4:{s:10:"expiration";i:1752141603;s:2:"ip";s:10:"172.18.0.1";s:2:"ua";s:125:"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0";s:5:"login";i:1751968803;}}
+# 2	    wp_language_pairs       	            a:3:{s:2:"eu";a:2:{s:2:"en";i:1;s:2:"es";i:1;}s:2:"en";a:2:{s:2:"eu";i:1;s:2:"es";i:1;}s:2:"es";a:2:{s:2:"eu";i:1;s:2:"en";i:1;}}
+# 2	    WPML_TM_Wizard_Only_I       	        1
+# 2	    _wpml_initialized_administrator_role    1
+# 2	    wp_ate_activated        	            1
+# 2	    wpml_enabled_for_translation_via_ate    1
+# 2	    icl_admin_language_migrated_to_wp47     1
+# 2	    icl_admin_language      	            es
+# 2	    _wpml_manual_translations_count         1
+# 2	    icl_show_hidden_languages     	        0
+# 2	    icl_admin_language_for_edit     	    0
+# 2	    wpml_block_new_email_notifications      0
+
+
+# --- wp_users ---
+# ID    2
+# user_login    eortegaar
+# user_pass     $P$Br8hioNyco2aYY/TdSvd1sXrL5ArOt0
+# user_nicename    eortegaar
+# user_email       eloy.ortega@seidor.com
