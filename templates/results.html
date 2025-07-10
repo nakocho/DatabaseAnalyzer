@@ -25,7 +25,7 @@
 
                 <!-- Summary Statistics -->
                 <div class="row mb-4">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="card border-0 bg-primary text-white">
                             <div class="card-body text-center">
                                 <i class="bi bi-file-text display-4 mb-2"></i>
@@ -34,7 +34,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="card border-0 bg-success text-white">
                             <div class="card-body text-center">
                                 <i class="bi bi-check-circle display-4 mb-2"></i>
@@ -43,7 +43,16 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <div class="card border-0 bg-warning text-white">
+                            <div class="card-body text-center">
+                                <i class="bi bi-exclamation-circle display-4 mb-2"></i>
+                                <h3 class="card-title">{{ results.warning_records }}</h3>
+                                <p class="card-text">Registros con Advertencias</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
                         <div class="card border-0 bg-danger text-white">
                             <div class="card-body text-center">
                                 <i class="bi bi-x-circle display-4 mb-2"></i>
@@ -52,6 +61,7 @@
                             </div>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Progress Bar -->
@@ -63,11 +73,16 @@
                         </h5>
                         {% set valid_percentage = (results.valid_records / results.total_records * 100) if results.total_records > 0 else 0 %}
                         {% set invalid_percentage = (results.invalid_records / results.total_records * 100) if results.total_records > 0 else 0 %}
+                        {% set warning_percentage = (results.warning_records / results.total_records * 100) if results.total_records > 0 else 0 %}
                         
                         <div class="progress" style="height: 30px;">
                             <div class="progress-bar bg-success" role="progressbar" style="width: {{ valid_percentage }}%" 
                                  aria-valuenow="{{ valid_percentage }}" aria-valuemin="0" aria-valuemax="100">
                                 {{ "%.1f"|format(valid_percentage) }}% Válidos
+                            </div>
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ warning_percentage }}%" 
+                                 aria-valuenow="{{ warning_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ "%.1f"|format(warning_percentage) }}% con Advertencias
                             </div>
                             <div class="progress-bar bg-danger" role="progressbar" style="width: {{ invalid_percentage }}%" 
                                  aria-valuenow="{{ invalid_percentage }}" aria-valuemin="0" aria-valuemax="100">
@@ -80,7 +95,7 @@
                 <!-- Download Files -->
                 <div class="row mb-4">
                     {% if results.valid_file %}
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="card border-success">
                             <div class="card-header bg-success text-white">
                                 <h5 class="card-title mb-0">
@@ -102,8 +117,31 @@
                     </div>
                     {% endif %}
 
+                    {% if results.warning_records %}
+                    <div class="col-md-4">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-download me-2"></i>
+                                    Registros con Advertencias
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    <strong>{{ results.warning_records }}</strong> registros con advertencias.
+                                </p>
+                                <a href="{{ url_for('download_file', filename=results.warning_file) }}" 
+                                   class="btn btn-warning">
+                                    <i class="bi bi-download me-2"></i>
+                                    Descargar CSV con Advertencias
+                                </a> 
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% if results.invalid_file %}
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="card border-danger">
                             <div class="card-header bg-danger text-white">
                                 <h5 class="card-title mb-0">
@@ -124,7 +162,47 @@
                         </div>
                     </div>
                     {% endif %}
+
+
                 </div>
+
+                <!-- warning Analysis -->
+                {% if results.warning_reasons %}
+                <div class="card border-0 mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Análisis de Advertencias
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Motivo de la Advertencia</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th class="text-end">Porcentaje</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for motivo, cantidad in results.warning_reasons.items() %}
+                                    <tr>
+                                        <td>{{ motivo }}</td>
+                                        <td class="text-end">
+                                            <span class="badge bg-warning">{{ cantidad }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            {{ "%.1f"|format(cantidad / results.warning_records * 100) }}%
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <!-- Error Analysis -->
                 {% if results.invalid_reasons %}

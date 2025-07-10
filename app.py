@@ -8,7 +8,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
-from validators import validar_identificador, limpiar_y_elegir_telefono, validar_email
+from validators import validar_identificador, limpiar_y_elegir_telefono, validar_email_Regex
 import uuid
 from datetime import datetime
 import pymysql
@@ -132,15 +132,28 @@ def upload_file():
 def process_csv_file(file_path, file_id):
     """Process CSV file and validate data"""
     try:
+        logging.info(f"Starting to process CSV file: {file_path}")
+
         # Read CSV file
-        df = pd.read_csv(file_path, sep=';')
+        df = pd.read_csv(file_path, sep=';', encoding='utf-8-sig')
+        logging.info(f"CSV loaded successfully. Total records: {len(df)}")
+        logging.info(f"Columns found: {list(df.columns)}")
         
+
         # Lists for valid and invalid records
         validos = []
         no_validos = []
-        
+        warnings = []
+
         # Process each row
+        total_rows = len(df)
         for idx, fila in df.iterrows():
+            if idx % 100 == 0:
+                logging.info(f"Processing row {idx + 1}/{total_rows}")
+
+            # add new column old_user
+            fila['old_user'] = 1
+
             # Clean phone number
             fila['telefono'] = limpiar_y_elegir_telefono(fila.get('telefono', ''))
             
@@ -148,59 +161,76 @@ def process_csv_file(file_path, file_id):
             dni = str(fila.get('dni', '')).strip()
             dni_valido, motivo_dni = validar_identificador(dni)
             
-            # Validate email if present
+            # Validate email if present using new regex function
             email_valido = True
             motivo_email = ""
             email_normalizado = ""
-            
-            if 'email' in fila and pd.notna(fila.get('email', '')):
-                email_valido, motivo_email, email_normalizado = validar_email(fila.get('email', ''))
-                if email_valido:
-                    fila['email'] = email_normalizado
-            
-            # Record is valid only if both DNI and email (if present) are valid
-            es_valido = dni_valido and email_valido
-            
-            if es_valido:
-                validos.append(fila)
+            email_original = ""
+
+            from validators import validar_email_Regex
+            email_valido, motivo_email, email_normalizado, email_original = validar_email_Regex(fila.get('email', ''))
+            # Always update the email field with normalized/corrected version
+            fila['email'] = email_normalizado
+
+            # Determine record status
+            if dni_valido:
+                # DNI is valid, add to validos
+                validos.append(fila.copy())
+                
+                # If email is invalid, also add to warnings
+                if not email_valido :
+                    fila_warning = fila.copy()
+                    fila_warning['email_original'] = email_original
+                    fila_warning['motivo_warning'] = f"Email: {motivo_email}"
+                    warnings.append(fila_warning)
             else:
+                # DNI is invalid, add to no_validos
                 fila_con_motivo = fila.copy()
-                motivos = []
-                if not dni_valido:
-                    motivos.append(f"DNI: {motivo_dni}")
-                if not email_valido and motivo_email:
+                motivos = [f"DNI: {motivo_dni}"]
+                
+                if not email_valido:
                     motivos.append(f"Email: {motivo_email}")
+                
                 fila_con_motivo['motivo_invalido'] = "; ".join(motivos)
                 no_validos.append(fila_con_motivo)
         
         # Create DataFrames
         df_validos = pd.DataFrame(validos)
         df_no_validos = pd.DataFrame(no_validos)
+        df_warnings = pd.DataFrame(warnings)
         
         # Generate output files
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         valid_filename = f"usuarios_validos_{timestamp}.csv"
         invalid_filename = f"usuarios_invalidos_{timestamp}.csv"
-        
+        warning_filename = f"usuarios_advertencias_{timestamp}.csv"
+
         valid_path = os.path.join(app.config['DOWNLOAD_FOLDER'], f"{file_id}_{valid_filename}")
         invalid_path = os.path.join(app.config['DOWNLOAD_FOLDER'], f"{file_id}_{invalid_filename}")
+        warning_path = os.path.join(app.config['DOWNLOAD_FOLDER'], f"{file_id}_{warning_filename}")
         
         # Save files
         if len(df_validos) > 0:
-            df_validos.to_csv(valid_path, sep=';', index=False)
+            df_validos.to_csv(valid_path, sep=';', index=False, encoding='utf-8-sig')
         
         if len(df_no_validos) > 0:
-            df_no_validos.to_csv(invalid_path, sep=';', index=False)
-        
+            df_no_validos.to_csv(invalid_path, sep=';', index=False, encoding='utf-8-sig')
+
+        if len(df_warnings) > 0:
+            df_warnings.to_csv(warning_path, sep=';', index=False, encoding='utf-8-sig')
+
         # Prepare results
         results = {
             'total_records': len(df),
             'valid_records': len(df_validos),
             'invalid_records': len(df_no_validos),
+            'warning_records': len(df_warnings),
             'valid_file': f"{file_id}_{valid_filename}" if len(df_validos) > 0 else None,
             'invalid_file': f"{file_id}_{invalid_filename}" if len(df_no_validos) > 0 else None,
+            'warning_file': f"{file_id}_{warning_filename}" if len(df_warnings) > 0 else None,
             'columns': list(df.columns),
-            'invalid_reasons': df_no_validos['motivo_invalido'].value_counts().to_dict() if len(df_no_validos) > 0 else {}
+            'invalid_reasons': df_no_validos['motivo_invalido'].value_counts().to_dict() if len(df_no_validos) > 0 else {},
+            'warning_reasons': df_warnings['motivo_warning'].value_counts().to_dict() if len(df_warnings) > 0 else {}
         }
         
         return results

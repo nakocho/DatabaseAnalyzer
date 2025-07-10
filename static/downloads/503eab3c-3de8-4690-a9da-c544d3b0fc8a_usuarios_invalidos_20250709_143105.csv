@@ -1,0 +1,16 @@
+dni;cod_usuario;nombre;apellido1;apellido2;telefono;email;old_user;email_original;motivo_invalido
+01380256A;1231;JOSE MANUEL;MURRIETA;SANGUINO;657711949;arabat@arabat.com;1;bitoriano@telefonica.ne;Email: The domain name telefonica.ne does not exist.
+01627617E;10871;ALVARO;ANTON;GOMEZ;617292796;arabat@arabat.com;1;anton.alvaro99@gmailcom;Email: The part after the @-sign is not valid. It should have a period.
+01832651B;10162;JESUS;MARTIN;ABAD;677983369;arabat@arabat.com;1;jmartinulmaconstruccion.es;Email: An email address must have an @-sign.
+04579269S;10277;JOSE ANTONIO;GARCIA;MEDINA;656421921;arabat@arabat.com;1;null;Email: Email vacío
+06929071E;12536;PEDRO;GARCIA;MARTIN;620397648;arabat@arabat.com;1;null;Email: Email vacío
+06941842M;8528;ANDRES;NISO;BARROSO;;arabat@arabat.com;1;null;Email: Email vacío
+07877152C;10234;MARIA JESUS;MARTIN;GUDINO;609882667;arabat@arabat.com;1;null;Email: Email vacío
+08925276B;1352;JOSE CRUZ;GURRUCHAGA;LARRAÑAGA;655742076;arabat@arabat.com;1;null;Email: Email vacío
+09648723Q;1362;JUAN JOSE;GARCIA;CEREZO;;arabat@arabat.com;1;null;Email: Email vacío
+10176264Y;1417;IMANOL;MARTINEZ;FERNANDEZ;635740006;arabat@arabat.com;1;null;Email: Email vacío
+10180960X;10291;FRANCISCA;PRIETO;FUERTES;605739439;arabat@arabat.com;1;null;Email: Email vacío
+11701882B;14190;MANUEL;MATELLANES;CODON;658701123;arabat@arabat.com;1;null;Email: Email vacío
+11723175Y;718;PEDRO;PÉREZ;MENDEZ;659119661;arabat@arabat.com;1;null;Email: Email vacío
+11904806Y;1471;CONCEPCION;MORENO;MORENO;;arabat@arabat.com;1;null;Email: Email vacío
+11906369M;1484;ALFONSO;ALCAIDE;DELFA;678831468;arabat@arabat.com;1;null;Email: Email vacío
