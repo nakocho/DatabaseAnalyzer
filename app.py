@@ -129,13 +129,86 @@ def upload_file():
         flash('Tipo de archivo no permitido. Solo se aceptan archivos CSV.', 'error')
         return redirect(url_for('index'))
 
+def insertar_usuarios_wp_users(df_validos):
+    """Inserta usuarios en la tabla wp_users desde un DataFrame"""
+
+    query = """
+    INSERT INTO wp_users (
+        user_login, user_pass, user_nicename, user_email,
+        user_registered, display_name, user_status, old_user
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    query_prueba = """
+    INSERT INTO wp_users (
+        user_login, user_pass, user_nicename, user_email,
+        user_registered, display_name, user_status
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+
+    check_query = """
+    SELECT ID FROM wp_users WHERE user_login = %s OR user_email = %s
+    """
+
+    try:
+    
+        connection = get_database_connection()
+        if connection:
+            with connection.cursor() as cursor:
+                insertados = 0
+                ya_existentes = 0
+                
+                for _, row in df_validos.iterrows():
+                    user_login = str(row['dni']).strip()
+                    user_email = str(row['email']).strip()
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    # Verificar existencia previa
+                    cursor.execute(check_query, (user_login, user_email))
+                    existe = cursor.fetchone()
+                    if existe:
+                        ya_existentes += 1
+                        continue  # No insertar si ya existe
+
+                    cursor.execute(query_prueba, (
+                        user_login,
+                        "$P$BvVcIM3tRr6C01eXELu9YOTlulg1Of/",  # Password hash (por ejemplo)
+                        user_login,
+                        user_email,
+                        now,
+                        user_login,
+                        0,      # user_status
+                        # 1       # old_user
+                    ))
+                    insertados += 1
+                    if insertados > 1:
+                        print(f"✅ Usuarios insertados: {insertados}")
+                        print(f"⚠️ Usuarios ya existentes (no insertados): {ya_existentes}")
+                        connection.commit()  # Commit after every 100 inserts
+                        break
+
+                connection.commit()
+                print(f"✅ Usuarios insertados: {insertados}")
+                print(f"⚠️ Usuarios ya existentes (no insertados): {ya_existentes}")
+
+            print(f"✅ {len(df_validos)} usuarios insertados correctamente.")
+        else:
+            return False, "Unable to establish connection"
+
+    except Exception as e:
+        connection.rollback()
+        print(f"❌ Error al insertar usuarios: {e}")
+
+    finally:
+        connection.close()
+
 def process_csv_file(file_path, file_id):
     """Process CSV file and validate data"""
     try:
         logging.info(f"Starting to process CSV file: {file_path}")
 
         # Read CSV file
-        df = pd.read_csv(file_path, sep=';', encoding='utf-8-sig')
+        df = pd.read_csv(file_path, sep=';', encoding='utf-8-sig', skip_blank_lines=True)
         logging.info(f"CSV loaded successfully. Total records: {len(df)}")
         logging.info(f"Columns found: {list(df.columns)}")
         
@@ -195,10 +268,18 @@ def process_csv_file(file_path, file_id):
                 no_validos.append(fila_con_motivo)
         
         # Create DataFrames
+        # Remove unnamed columns
+        unnamed_column_name = 'Unnamed'
+
         df_validos = pd.DataFrame(validos)
+        df_validos = df_validos.loc[:, ~df_validos.columns.str.contains(unnamed_column_name)]
+
         df_no_validos = pd.DataFrame(no_validos)
+        df_no_validos = df_no_validos.loc[:, ~df_no_validos.columns.str.contains(unnamed_column_name)]
+
         df_warnings = pd.DataFrame(warnings)
-        
+        df_warnings = df_warnings.loc[:, ~df_warnings.columns.str.contains(unnamed_column_name)]
+
         # Generate output files
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         valid_filename = f"usuarios_validos_{timestamp}.csv"
@@ -232,7 +313,7 @@ def process_csv_file(file_path, file_id):
             'invalid_reasons': df_no_validos['motivo_invalido'].value_counts().to_dict() if len(df_no_validos) > 0 else {},
             'warning_reasons': df_warnings['motivo_warning'].value_counts().to_dict() if len(df_warnings) > 0 else {}
         }
-        
+        insertar_usuarios_wp_users(df_validos)
         return results
         
     except Exception as e:
