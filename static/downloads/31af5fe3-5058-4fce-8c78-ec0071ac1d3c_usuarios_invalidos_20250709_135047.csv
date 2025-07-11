@@ -1,4 +1,0 @@
-dni;cod_usuario;nombre;apellido1;apellido2;telefono;email;old_user;email_original;motivo_invalido
-01380256A;1231;JOSE MANUEL;MURRIETA;SANGUINO;657711949;arabat@arabat.com;1;bitoriano@telefonica.ne;Email: The domain name telefonica.ne does not exist.
-01627617E;10871;ALVARO;ANTON;GOMEZ;617292796;arabat@arabat.com;1;anton.alvaro99@gmailcom;Email: The part after the @-sign is not valid. It should have a period.
-01832651B;10162;JESUS;MARTIN;ABAD;677983369;arabat@arabat.com;1;jmartinulmaconstruccion.es;Email: An email address must have an @-sign.
