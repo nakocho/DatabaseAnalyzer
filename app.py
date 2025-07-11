@@ -313,7 +313,10 @@ def process_csv_file(file_path, file_id):
             'invalid_reasons': df_no_validos['motivo_invalido'].value_counts().to_dict() if len(df_no_validos) > 0 else {},
             'warning_reasons': df_warnings['motivo_warning'].value_counts().to_dict() if len(df_warnings) > 0 else {}
         }
-        insertar_usuarios_wp_users(df_validos)
+        #############################################################################################################
+        # Escritura de datos en la base de datos
+        # insertar_usuarios_wp_users(df_validos)
+        #############################################################################################################
         return results
         
     except Exception as e:
