@@ -1,2 +1,24 @@
+# Entorno virtual
+venv/
+.env
 
-static/downloads/*.csv
+# Archivos de configuración o secretos
+*.env
+*.pyc
+__pycache__/
+*.log
+
+# Archivos temporales de Flask
+instance/
+*.sqlite3
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Subidas de usuario
+static/uploads/
+static/downloads/
+
+# CSV temporales
+*.csv

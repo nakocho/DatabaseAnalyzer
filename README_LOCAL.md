@@ -36,11 +36,11 @@ pip install -r dependencias.txt
 Edita el archivo `.env` con tus datos reales:
 ```
 # Database Configuration
-DB_HOST=172.16.20.121
-DB_PORT=3306
-DB_USER=admin-arabat
-DB_PASSWORD=777_nbczST
-DB_NAME=arabatDB
+DB_HOST
+DB_PORT
+DB_USER
+DB_PASSWORD
+DB_NAME
 
 # Flask Configuration
 SESSION_SECRET=cambia_esto_por_una_clave_segura_aleatoria
@@ -109,3 +109,9 @@ Si el puerto 5000 está ocupado, cambia en `app.py`:
 ```python
 app.run(host='0.0.0.0', port=8000, debug=True)  # Cambiar puerto
 ```
+
+### winStart.bat
+Este archivo:
+    - Activa el entorno virtual
+    - Lanza la aplicación
+    - Abre tu navegador en http://localhost:5000
