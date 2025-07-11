@@ -129,78 +129,87 @@ def upload_file():
         flash('Tipo de archivo no permitido. Solo se aceptan archivos CSV.', 'error')
         return redirect(url_for('index'))
 
-def insertar_usuarios_wp_users(df_validos):
-    """Inserta usuarios en la tabla wp_users desde un DataFrame"""
+def usuario_existe(cursor, login, email):
+    # user_login  es el dni
+    cursor.execute("SELECT ID FROM wp_users WHERE user_login = %s AND user_email = %s ", (login, email))
+    return cursor.fetchone()
 
+def insertar_usuario(cursor, login, email, now):
     query = """
-    INSERT INTO wp_users (
-        user_login, user_pass, user_nicename, user_email,
-        user_registered, display_name, user_status, old_user
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """
-
-    query_prueba = """
     INSERT INTO wp_users (
         user_login, user_pass, user_nicename, user_email,
         user_registered, display_name, user_status
     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
+    cursor.execute(query, (
+        login,
+        "$P$BhKKDxDIIhoOs8dO8wK4fGNqYe3GKS0",  # hash por defecto
+        login,
+        email,
+        now,
+        login,
+        0
+    ))
+    return cursor.lastrowid
 
-    check_query = """
-    SELECT ID FROM wp_users WHERE user_login = %s OR user_email = %s
-    """
+def insertar_usermeta(cursor, user_id, fila):
+    dni = fila.get('dni', '')
+    phone = fila.get('telefono', '')
+    metadatos = [
+        ('nickname', dni),
+        ('dni', dni),
+        ('phone', phone),
+        ('wp_capabilities', 'a:1:{s:10:"subscriber";b:1;}'),
+        ('wp_user_level', '0'),
+        ('old_user', '1'),
+        ('show_admin_bar_front', 'false')
+    ]
 
+    query = "INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (%s, %s, %s)"
+    for key, value in metadatos:
+        cursor.execute(query, (user_id, key, value))
+
+
+def insertar_usuarios_wp_users(df_validos):
+    """Inserta usuarios en wp_users y wp_usermeta"""
     try:
-    
         connection = get_database_connection()
-        if connection:
-            with connection.cursor() as cursor:
-                insertados = 0
-                ya_existentes = 0
-                
-                for _, row in df_validos.iterrows():
-                    user_login = str(row['dni']).strip()
-                    user_email = str(row['email']).strip()
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if not connection:
+            print("❌ No se pudo establecer conexión con la base de datos.")
+            return
 
-                    # Verificar existencia previa
-                    cursor.execute(check_query, (user_login, user_email))
-                    existe = cursor.fetchone()
-                    if existe:
-                        ya_existentes += 1
-                        continue  # No insertar si ya existe
+        with connection.cursor() as cursor:
+            insertados = 0
+            ya_existentes = 0
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                    cursor.execute(query_prueba, (
-                        user_login,
-                        "$P$BvVcIM3tRr6C01eXELu9YOTlulg1Of/",  # Password hash (por ejemplo)
-                        user_login,
-                        user_email,
-                        now,
-                        user_login,
-                        0,      # user_status
-                        # 1       # old_user
-                    ))
-                    insertados += 1
-                    if insertados > 1:
-                        print(f"✅ Usuarios insertados: {insertados}")
-                        print(f"⚠️ Usuarios ya existentes (no insertados): {ya_existentes}")
-                        connection.commit()  # Commit after every 100 inserts
-                        break
+            for _, fila in df_validos.iterrows():
+                login = str(fila['dni']).strip()
+                email = str(fila['email']).strip()
 
-                connection.commit()
-                print(f"✅ Usuarios insertados: {insertados}")
-                print(f"⚠️ Usuarios ya existentes (no insertados): {ya_existentes}")
+                if usuario_existe(cursor, login, email):
+                    ya_existentes += 1
+                    print(f" {ya_existentes} - ⚠️ Usuario ya existente: {login} ({email})")
+                    continue
+                    
+                user_id = insertar_usuario(cursor, login, email, now)
+                insertar_usermeta(cursor, user_id, fila)
+                insertados += 1
+                print(f" {insertados} - ✅ Usuario insertado: {login} ({email})")
 
-            print(f"✅ {len(df_validos)} usuarios insertados correctamente.")
-        else:
-            return False, "Unable to establish connection"
+            connection.commit()
+            
+            print(f"✅ Usuarios insertados: {insertados}")
+            print(f"⚠️ Ya existentes (omitidos): {ya_existentes}")
 
     except Exception as e:
-        connection.rollback()
+        if connection:
+            connection.rollback()
         print(f"❌ Error al insertar usuarios: {e}")
 
     finally:
-        connection.close()
+        if connection:
+            connection.close()
 
 def process_csv_file(file_path, file_id):
     """Process CSV file and validate data"""
@@ -315,7 +324,7 @@ def process_csv_file(file_path, file_id):
         }
         #############################################################################################################
         # Escritura de datos en la base de datos
-        # insertar_usuarios_wp_users(df_validos)
+        insertar_usuarios_wp_users(df_validos)
         #############################################################################################################
         return results
         
